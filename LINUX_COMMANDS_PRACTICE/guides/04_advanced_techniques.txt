@@ -1,0 +1,408 @@
+# ADVANCED TECHNIQUES - LINUX FILE OPERATIONS
+
+## Overview
+Advanced techniques combine multiple commands to perform complex operations efficiently.
+
+---
+
+## 1. PIPING & COMMAND CHAINING
+
+### Basic Concept
+Pass output of one command as input to another using the pipe (|) operator.
+
+### Basic Syntax
+command1 | command2 | command3
+
+### Practical Examples
+
+**Counting Search Results**
+find . -name "*.txt" | wc -l         # Count all .txt files
+grep "error" log.txt | wc -l          # Count errors
+
+**Sorting Results**
+grep "error" log.txt | sort | uniq   # Sort and remove duplicates
+find . -type f | sort                 # List files sorted
+
+**Filtering Output**
+grep "ERROR" log.txt | head -10       # First 10 errors
+grep "ERROR" log.txt | tail -5        # Last 5 errors
+
+**Complex Pipelines**
+grep "ERROR" log.txt | awk '{print $3}' | sort | uniq -c
+# Count occurrences of 3rd field from error lines
+
+find . -name "*.log" -size +10M | xargs grep -l "error"
+# Find large log files containing "error"
+
+ps aux | grep "python" | grep -v grep
+# Find python processes (excluding grep itself)
+
+du -sh */ | sort -hr | head -10
+# Find 10 largest directories
+
+---
+
+## 2. COMMAND SUBSTITUTION
+
+### Concept
+Use output of one command as argument to another.
+
+### Syntax
+command1 $(command2)
+command1 `command2`                  # Older syntax (same effect)
+
+### Practical Examples
+
+# Find and display files
+cat $(find . -name "*.config")
+
+# Process files from search
+ls -l $(grep -l "error" *.txt)
+
+# Get current directory size
+du -sh $(pwd)
+
+# Find and change permissions
+chmod 755 $(find . -type f -name "*.sh")
+
+# Archive recently modified files
+tar czf backup.tar.gz $(find . -type f -mtime -7)
+
+# Delete files matching pattern
+rm $(find . -name "*.tmp" -type f)
+
+---
+
+## 3. FIND WITH EXEC
+
+### Purpose
+Execute commands on files found by find.
+
+### Syntax
+find criteria -exec command {} \;
+find criteria -exec command {} +        # More efficient
+
+### Practical Examples
+
+**File Operations**
+find . -name "*.log" -exec cat {} \;
+# Display contents of all log files
+
+find . -type f -exec ls -lh {} \;
+# List details of all files
+
+find . -name "*.txt" -exec wc -l {} \;
+# Count lines in all .txt files
+
+**Modification**
+find . -type f -name "*.txt" -exec sed -i 's/old/new/g' {} \;
+# Find and replace in all .txt files
+
+find . -type f -exec chmod 644 {} \;
+# Set permissions on all files
+
+find . -type d -exec chmod 755 {} \;
+# Set permissions on all directories
+
+**Deletion & Archiving**
+find . -name "*.tmp" -type f -exec rm {} \;
+# Delete all temporary files
+
+find . -type f -mtime +30 -exec rm {} \;
+# Delete files not modified in 30+ days
+
+find . -name "*.log" -type f -exec gzip {} \;
+# Compress all log files
+
+---
+
+## 4. XARGS - ARGUMENT LIST PROCESSING
+
+### Purpose
+Convert piped input into command arguments. More efficient than -exec for multiple files.
+
+### Syntax
+command | xargs [options] command2
+
+### Common Options
+xargs -n N           # Use N arguments per command
+xargs -p             # Prompt before execution
+xargs -I {} cmd {}   # Replace {} with each argument
+xargs -0             # Handle null-separated input
+xargs -P N           # Parallel execution (N processes)
+
+### Practical Examples
+
+**Finding and Processing**
+find . -name "*.txt" | xargs grep "error"
+# Search for "error" in all .txt files
+
+find . -type f | xargs wc -l
+# Count lines in all files
+
+find . -name "*.log" | xargs gzip
+# Compress all log files
+
+**Deletion**
+find . -name "*.tmp" | xargs rm
+# Delete all temporary files
+
+**Batch Processing**
+ls *.pdf | xargs -n 1 pdftotext
+# Convert each PDF to text (one at a time)
+
+**Parallel Processing**
+find . -name "*.jpg" | xargs -P 4 convert
+# Process 4 images in parallel
+
+**With Interactive Prompt**
+find . -name "*.bak" | xargs -p rm
+# Confirm deletion of each backup file
+
+**Custom Replacement**
+find . -name "*.txt" | xargs -I {} cp {} {}.backup
+# Create backup of each .txt file
+
+---
+
+## 5. FIND WITH OTHER FILTERS
+
+### Combining Multiple Criteria
+
+**Time-based Operations**
+find . -type f -mtime -7                # Modified in last 7 days
+find . -type f -mmin -60                # Modified in last 60 minutes
+find . -type f -atime +30               # Accessed more than 30 days ago
+find . -type f -ctime 0                 # Changed today
+
+**Size-based Operations**
+find . -type f -size +100M              # Larger than 100MB
+find . -type f -size -10M               # Smaller than 10MB
+find . -type f -size 100k               # Exactly 100KB
+
+**Permission-based Operations**
+find . -type f -perm 644                # Exact permissions
+find . -type f -perm -u+x               # Executable by user
+find . -type f ! -perm /a+x             # NOT executable by anyone
+
+**Ownership-based Operations**
+find . -user username                   # Owned by user
+find . -group groupname                 # Owned by group
+find . -nouser                          # Unowned files
+
+**Complex Combinations**
+find . -type f -name "*.log" -size +10M -mtime -7 -exec ls -lh {} \;
+# Large logs modified recently
+
+find . -type f \( -name "*.tmp" -o -name "*.bak" \) -delete
+# Delete temp and backup files
+
+find . -type f -not -path "*/.*" -print
+# Find files excluding hidden directories
+
+---
+
+## 6. SED - STREAM EDITOR
+
+### Purpose
+Find and replace text in files.
+
+### Syntax
+sed 's/old/new/' file              # Replace first per line
+sed 's/old/new/g' file             # Replace all occurrences
+sed -i 's/old/new/g' file          # In-place edit
+sed -i.bak 's/old/new/g' file      # In-place with backup
+
+### Practical Examples
+
+**Basic Replacements**
+sed 's/error/ERROR/' log.txt
+# Replace first "error" with "ERROR" per line
+
+sed 's/error/ERROR/g' log.txt
+# Replace all "error" with "ERROR"
+
+sed 's/error/ERROR/2' log.txt
+# Replace 2nd occurrence per line
+
+**Case-insensitive**
+sed 's/error/ERROR/gi' log.txt
+# Case-insensitive replacement
+
+**Deleting Lines**
+sed '1d' file.txt                  # Delete line 1
+sed '1,5d' file.txt                # Delete lines 1-5
+sed '/pattern/d' file.txt          # Delete lines matching pattern
+sed '$ d' file.txt                 # Delete last line
+
+**Printing Specific Lines**
+sed -n '5p' file.txt               # Print line 5 only
+sed -n '1,10p' file.txt            # Print lines 1-10
+sed -n '/pattern/p' file.txt       # Print lines matching pattern
+
+**Advanced**
+sed 's/^/PREFIX: /' file.txt       # Add prefix to each line
+sed 's/$/ :SUFFIX/' file.txt       # Add suffix to each line
+sed 's/  */ /g' file.txt           # Replace multiple spaces with one
+sed 's/^#.*//' file.txt            # Remove comments
+
+**In-place Editing**
+sed -i 's/old/new/g' *.txt         # Replace in all .txt files
+sed -i.bak 's/old/new/g' file.txt # Create backup before editing
+
+---
+
+## 7. AWK - TEXT PROCESSING
+
+### Purpose
+Powerful text processing and data extraction.
+
+### Basic Syntax
+awk 'pattern { action }' file
+awk '{ print $1 }' file            # Print first field
+awk 'BEGIN { } { } END { }' file   # With sections
+
+### Practical Examples
+
+**Field Operations**
+awk '{print $1}' data.txt          # Print first column
+awk '{print $1, $3}' data.txt      # Print columns 1 and 3
+awk '{print NF}' data.txt          # Print number of fields
+awk '{print $(NF)}' data.txt       # Print last field
+
+**Calculations**
+awk '{sum += $1} END {print sum}' numbers.txt
+# Sum first column
+
+awk '{sum += $2; count++} END {print sum/count}' data.txt
+# Average of second column
+
+**Filtering**
+awk '$2 > 100 {print}' data.txt    # Print lines where column 2 > 100
+awk '/error/ {print}' log.txt      # Print lines containing "error"
+awk '$1 == "ERROR" {count++} END {print count}' log.txt
+# Count ERROR lines
+
+**String Operations**
+awk '{print tolower($0)}' file.txt # Convert to lowercase
+awk '{print toupper($0)}' file.txt # Convert to uppercase
+awk '{print length($0)}' file.txt  # Print line length
+
+**Complex Processing**
+awk -F: '{print $1}' /etc/passwd   # Print usernames (colon-separated)
+awk '{gsub(/old/, "new"); print}' file.txt
+# Find and replace using awk
+
+---
+
+## 8. COMBINING FIND, GREP, SED, AND AWK
+
+### Real-world Scenarios
+
+**Find and Replace Across Multiple Files**
+find . -name "*.txt" -type f | xargs sed -i 's/old/new/g'
+
+**Process Log Files**
+find . -name "*.log" -type f -exec grep "ERROR" {} + | awk '{print $1}' | sort | uniq -c
+# Count ERROR occurrences by date
+
+**Extract and Process Data**
+find . -name "*.csv" | xargs cat | awk -F, '{print $2}' | sort | uniq -c | sort -rn
+# Count occurrences of 2nd CSV column
+
+**Find Large Files and Check Content**
+find . -type f -size +100M | xargs grep -l "pattern" | xargs ls -lh
+# Find large files containing pattern and list details
+
+**Backup with Compression**
+find . -type f -mtime -7 | xargs tar czf backup_$(date +%Y%m%d).tar.gz
+# Archive files modified in last week
+
+**Find and Archive by Type**
+find . -name "*.log" -type f -mtime +30 | xargs tar czf old_logs_$(date +%s).tar.gz
+# Archive old log files
+
+---
+
+## 9. PARALLEL PROCESSING
+
+### Using xargs for Parallel Jobs
+
+find . -name "*.jpg" | xargs -P 4 convert original {}.png
+# Process 4 images in parallel
+
+### Using GNU Parallel
+
+find . -name "*.pdf" | parallel convert {} {.}.jpg
+# Convert all PDFs to JPG in parallel
+
+---
+
+## 10. PERFORMANCE OPTIMIZATION
+
+### Best Practices
+
+1. **Prefer -print0 with xargs**
+   find . -name "*.txt" -print0 | xargs -0 grep pattern
+   # Handles filenames with spaces safely
+
+2. **Use -exec + instead of -exec ;**
+   find . -type f -exec ls -l {} +
+   # Batch execution is faster
+
+3. **Limit search scope**
+   grep -r --include="*.log" pattern /var/log
+   # Search only specific file types
+
+4. **Exclude unnecessary directories**
+   find . --exclude-dir=.git --exclude-dir=node_modules -type f
+   # Skip large directories
+
+5. **Use -F for literal strings**
+   grep -F "literal.string" file
+   # Faster than regex when regex not needed
+
+6. **Combine operations efficiently**
+   find . -name "*.txt" -type f | xargs wc -l | tail -1
+   # Get total line count in one pass
+
+---
+
+## QUICK COMMAND REFERENCE
+
+Operation                    | Command
+-----------------------------+--------------------------------------
+Find and display             | find . -name "*.txt" -exec cat {} \;
+Find and count               | find . -name "*.txt" | xargs wc -l
+Find and replace             | find . -name "*.txt" | xargs sed -i 's/old/new/g'
+Find and delete              | find . -name "*.tmp" -delete
+Find and compress            | find . -name "*.log" | xargs gzip
+Grep with context            | grep -B 2 -A 2 "pattern" file
+Recursive grep and count     | grep -r "pattern" . | wc -l
+Findand grep                 | find . -name "*.txt" | xargs grep "pattern"
+Sort and count occurrences   | grep "pattern" file | awk '{print $1}' | sort | uniq -c
+Process in parallel          | find . -name "*.txt" | xargs -P 4 command
+
+---
+
+## PRACTICE EXERCISES
+
+# 1. Create test structure
+mkdir -p test_dir/{subdir1,subdir2}
+touch test_dir/*.txt test_dir/subdir1/*.txt test_dir/subdir2/*.txt
+
+# 2. Find all .txt files and count lines
+find test_dir -name "*.txt" | xargs wc -l
+
+# 3. Add same prefix to all .txt files
+find test_dir -name "*.txt" -exec sed -i 's/^/PREFIX: /' {} \;
+
+# 4. Find files modified in last day
+find test_dir -type f -mtime -1
+
+# 5. Create backup of all .txt files
+find test_dir -name "*.txt" | xargs -I {} cp {} {}.backup
+
+---
+
+Master these advanced techniques for efficient Linux file operations!

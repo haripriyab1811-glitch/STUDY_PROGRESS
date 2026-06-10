@@ -1,0 +1,456 @@
+# COMMON USE CASES - PRACTICAL EXAMPLES
+
+## Overview
+Real-world scenarios and solutions using Linux file commands.
+
+---
+
+## 1. LOG FILE ANALYSIS
+
+### Use Case: Analyzing Application Logs
+
+**Scenario**: You need to analyze application logs to find errors and their frequency.
+
+**Solution**:
+
+# View last 50 lines of log
+tail -n 50 app.log
+
+# Follow log in real-time (useful during testing)
+tail -f app.log
+
+# Count total errors
+grep -c "ERROR" app.log
+
+# Show all errors with timestamps
+grep "ERROR" app.log | head -20
+
+# Count errors by hour
+grep "ERROR" app.log | awk '{print $1}' | sort | uniq -c
+
+# Find most frequent error message
+grep "ERROR" app.log | awk '{$1=$2=$3=""; print $0}' | sort | uniq -c | sort -rn | head -5
+
+# View errors with 2 lines of context
+grep -B 2 -A 2 "ERROR" app.log
+
+# Monitor multiple log files simultaneously
+tail -f app.log error.log debug.log
+
+# Find errors on specific date
+grep "2024-01-10" app.log | grep "ERROR"
+
+# Extract error codes
+grep "ERROR" app.log | grep -oE "Code: [0-9]+" | sort | uniq -c
+
+---
+
+## 2. FINDING LARGE FILES
+
+### Use Case: Disk Space Management - Find and Remove Large Files
+
+**Scenario**: Disk is running out of space. Need to find large files.
+
+**Solution**:
+
+# Find files larger than 100MB
+find . -type f -size +100M
+
+# Find files larger than 100MB with details
+find . -type f -size +100M -exec ls -lh {} \;
+
+# Find 10 largest files
+du -ah . | sort -rh | head -10
+
+# Find 10 largest directories
+du -sh */ | sort -rh | head -10
+
+# Find large files by extension
+find . -name "*.log" -type f -size +50M
+
+# Find old large files (older than 30 days)
+find . -type f -size +100M -mtime +30 -exec ls -lh {} \;
+
+# Create report of large files
+find . -type f -size +50M -exec ls -lh {} \; > large_files_report.txt
+
+# Safe deletion (confirm before deleting)
+find . -name "*.tmp" -type f -size +100M | xargs -p rm
+
+# Archive old large log files
+find . -name "*.log" -type f -size +50M -mtime +7 -exec gzip {} \;
+
+---
+
+## 3. SEARCHING CODE IN PROJECTS
+
+### Use Case: Find Function or Variable in Source Code
+
+**Scenario**: Need to find where a specific function is defined or used in a project.
+
+**Solution**:
+
+# Find function definition in Python files
+grep -r "def function_name" --include="*.py" .
+
+# Find function calls (not definitions)
+grep -r "function_name(" --include="*.py" . | grep -v "def function_name"
+
+# Find TODO comments
+grep -r "TODO" --include="*.js" --include="*.py" .
+
+# Find FIXME comments with line numbers
+grep -rn "FIXME" --include="*.java" .
+
+# Find variables in JavaScript
+grep -r "var myVar" --include="*.js" .
+
+# Find imports in Python
+grep -r "^from .* import\|^import" --include="*.py" . | sort | uniq
+
+# Count lines of code (excluding comments and blanks)
+find . -name "*.py" -type f -exec wc -l {} + | tail -1
+
+# Find unused imports
+grep -r "^import" --include="*.py" . | while read line; do
+  import=$(echo $line | awk '{print $2}' | cut -d'.' -f1)
+  echo "Checking $import"
+  grep -q "$import" $(dirname $line) || echo "Possibly unused: $line"
+done
+
+# Find all function definitions
+grep -rn "^def " --include="*.py" . | awk -F: '{print $1, $3}' | sort -u
+
+---
+
+## 4. FILE BACKUP AND ARCHIVING
+
+### Use Case: Create Backups of Important Files
+
+**Scenario**: Need to backup important files regularly.
+
+**Solution**:
+
+# Backup all .txt files
+find . -name "*.txt" -type f | xargs tar czf backup_$(date +%Y%m%d).tar.gz
+
+# Backup files modified in last week
+find . -type f -mtime -7 | xargs tar czf weekly_backup.tar.gz
+
+# Create timestamped backup
+tar czf backup_$(date +%Y%m%d_%H%M%S).tar.gz --exclude=.git --exclude=node_modules .
+
+# Backup with size report
+find . -type f -name "*.log" -size +1M -exec du -sh {} + | xargs -I {} echo "Archiving: {}" && \
+find . -type f -name "*.log" -size +1M | xargs tar czf logs_backup_$(date +%s).tar.gz
+
+# Incremental backup (newer than reference file)
+find . -type f -newer reference_file | xargs tar czf incremental_backup.tar.gz
+
+# Backup with compression and encryption
+tar czf - important_dir | openssl enc -aes-256-cbc -out backup.tar.gz.enc
+
+# Backup specific file types
+find . \( -name "*.py" -o -name "*.txt" -o -name "*.md" \) | xargs tar czf code_backup.tar.gz
+
+---
+
+## 5. CLEANING UP OLD FILES
+
+### Use Case: Remove Old Temporary Files to Free Space
+
+**Scenario**: Old temporary files are accumulating.
+
+**Solution**:
+
+# Find and list files older than 30 days
+find . -type f -mtime +30
+
+# Delete files not accessed in 90 days
+find . -type f -atime +90 -delete
+
+# Remove files older than specific date
+find . -type f -mtime +30 -name "*.tmp" -delete
+
+# Safe deletion (show what will be deleted first)
+find . -type f -mtime +30 -name "*.log"
+find . -type f -mtime +30 -name "*.log" -delete
+
+# Clean up with confirmation
+find . -type f -mtime +30 | xargs -p rm
+
+# Remove empty directories
+find . -type d -empty -delete
+
+# Remove log files older than 30 days
+find /var/log -name "*.log" -mtime +30 -delete
+
+# Archive then delete old files
+find . -type f -name "*.log" -mtime +7 -exec gzip {} \; -delete
+
+---
+
+## 6. MONITORING DISK USAGE
+
+### Use Case: Track Disk Space Usage Over Time
+
+**Scenario**: Need to monitor which directories use the most space.
+
+**Solution**:
+
+# Show disk usage of all directories
+du -sh */
+
+# Show top 10 largest directories
+du -sh */ | sort -rh | head -10
+
+# Show disk usage with specific path
+du -sh /var/log/
+
+# Show detailed breakdown
+du -h --max-depth=2 .
+
+# Find which directories are growing
+du -sk */ | sort -rn | head -5
+
+# Create disk usage report
+du -sh */ | sort -rh > disk_usage_report_$(date +%Y%m%d).txt
+
+# Monitor specific directory
+watch 'du -sh /var/log'
+
+# Show filesystem usage
+df -h
+
+# Show inode usage
+df -i
+
+---
+
+## 7. FINDING DUPLICATE FILES
+
+### Use Case: Find and Remove Duplicate Files
+
+**Scenario**: Looking for duplicate files to clean up storage.
+
+**Solution**:
+
+# Find duplicate files by size (quick)
+find . -type f -exec ls -l {} \; | awk '{print $5}' | sort | uniq -d
+
+# Find files with same size
+find . -type f -print0 | xargs -0 ls -l | awk '{print $5, $9}' | sort -k1 -rn | uniq -d -w10
+
+# Find duplicates by MD5 hash
+find . -type f -exec md5sum {} \; | sort | uniq -d -w32
+
+# Find and list duplicate files
+find . -type f ! -empty -exec md5sum {} \; | sort | uniq -d -w32 | cut -d' ' -f3-
+
+# Safe method: show files with same content
+find . -type f -exec md5sum {} + | awk '{print $1}' | sort | uniq -d | while read hash; do
+  find . -type f -exec md5sum {} + | grep "^$hash" | cut -d' ' -f2-
+done
+
+---
+
+## 8. BATCH FILE RENAMING
+
+### Use Case: Rename Multiple Files at Once
+
+**Scenario**: Need to rename files with a pattern.
+
+**Solution**:
+
+# Rename all .txt files to .bak
+find . -name "*.txt" -type f | while read f; do mv "$f" "${f%.txt}.bak"; done
+
+# Add prefix to filenames
+find . -name "*.jpg" -type f | while read f; do mv "$f" "prefix_$f"; done
+
+# Add suffix before extension
+find . -name "*.log" -type f | while read f; do mv "$f" "${f%.log}_$(date +%Y%m%d).log"; done
+
+# Convert to lowercase
+find . -type f | while read f; do mv "$f" "$(echo $f | tr '[:upper:]' '[:lower:]')"; done
+
+# Number files sequentially
+ls -1 *.jpg | nl -v1 -s' ' | awk '{print $1" "$2" "$3}' | while read n old new; do
+  mv "$old" "photo_$(printf '%03d' $n).jpg"
+done
+
+---
+
+## 9. PERMISSION MANAGEMENT
+
+### Use Case: Set Correct Permissions on Multiple Files
+
+**Scenario**: Files have incorrect permissions.
+
+**Solution**:
+
+# Make all scripts executable
+find . -name "*.sh" -type f -exec chmod +x {} \;
+
+# Make all files readable
+find . -type f -exec chmod a+r {} \;
+
+# Make directories accessible
+find . -type d -exec chmod a+x {} \;
+
+# Set files to 644, directories to 755
+find . -type f -exec chmod 644 {} \;
+find . -type d -exec chmod 755 {} \;
+
+# Make files writable by owner only
+find . -type f -exec chmod 600 {} \;
+
+# Find files with wrong permissions
+find . -type f -perm /go=x
+# Lists files executable by group or others
+
+# Find readable files
+find . -type f -readable
+
+# Find writable files
+find . -type f -writable
+
+---
+
+## 10. CONTENT VALIDATION AND PROCESSING
+
+### Use Case: Validate and Process File Contents
+
+**Scenario**: Need to check file contents and perform operations.
+
+**Solution**:
+
+# Check for empty files
+find . -type f -empty
+
+# Find non-empty files
+find . -type f ! -empty
+
+# Check file integrity
+md5sum -c checksums.txt
+
+# Generate checksums
+find . -type f -exec md5sum {} + > checksums.txt
+
+# Find files with specific content
+grep -r "specific_string" . --include="*.txt"
+
+# Count specific pattern occurrences
+grep -r "pattern" . | wc -l
+
+# Validate JSON files
+find . -name "*.json" -exec python3 -m json.tool {} \; -print
+
+# Check file encoding
+find . -type f -exec file -i {} \;
+
+---
+
+## 11. SYSTEM MAINTENANCE
+
+### Use Case: Regular System Cleanup Tasks
+
+**Scenario**: Perform routine maintenance.
+
+**Solution**:
+
+# List recently modified files
+find . -type f -mtime -1          # Modified in last 24 hours
+find . -type f -mmin -60          # Modified in last 60 minutes
+
+# Find and compress old logs
+find /var/log -name "*.log" -mtime +30 -exec gzip {} \;
+
+# Remove cache files
+find . -type f -name "*.cache" -delete
+find . -type f -name ".DS_Store" -delete
+
+# Clean Python bytecode
+find . -type d -name "__pycache__" -exec rm -rf {} +
+find . -type f -name "*.pyc" -delete
+
+# Clean build artifacts
+find . -type d -name "node_modules" -prune -o -type f -name "*.o" -delete
+
+---
+
+## 12. PERFORMANCE MONITORING
+
+### Use Case: Monitor System Performance
+
+**Scenario**: Need to track system metrics.
+
+**Solution**:
+
+# Monitor file system changes
+watch 'ls -la | head -20'
+
+# Watch disk usage growth
+watch 'du -sh .'
+
+# Monitor log file growth
+watch 'tail -20 /var/log/syslog'
+
+# Track active processes
+watch 'ps aux | grep python'
+
+# Monitor memory usage
+watch free -h
+
+# Track network connections
+watch 'netstat -an | grep ESTABLISHED | wc -l'
+
+---
+
+## QUICK REFERENCE - COMMON COMMANDS
+
+Task                             | Command
+---------------------------------+--------------------------------------------------
+List recent files                | find . -type f -mtime -1
+Find large files                 | find . -type f -size +100M
+Find duplicate files             | find . -type f -exec md5sum {} +
+Backup files                     | tar czf backup.tar.gz --exclude=.git .
+Clean old files                  | find . -type f -mtime +30 -delete
+Check disk usage                 | du -sh */
+Find in code                     | grep -r "pattern" --include="*.py" .
+Monitor log file                 | tail -f app.log
+Rename files                     | find . -name "*.txt" | xargs rename
+Set permissions                  | find . -type f -exec chmod 644 {} \;
+Count files                      | find . -type f | wc -l
+Compare files                    | diff file1 file2
+Search with context              | grep -C 3 "pattern" file
+Combine multiple files           | cat *.txt > combined.txt
+Sort and deduplicate             | sort file.txt | uniq
+
+---
+
+## BEST PRACTICES
+
+1. **Always test commands first**
+   - Use find without -delete first
+   - Check what will be modified before sed -i
+
+2. **Create backups before mass operations**
+   - tar czf backup.tar.gz directory
+   - cp -r directory directory.bak
+
+3. **Use find with -print0 and xargs -0 for spaces**
+   - find . -print0 | xargs -0 grep pattern
+
+4. **Monitor progress on large operations**
+   - find . -type f -exec echo "Processing: {}" \; -exec command {} \;
+
+5. **Use parallel processing for speed**
+   - find . -name "*.jpg" | xargs -P 4 command
+
+6. **Keep logs of important operations**
+   - command > operation.log 2>&1
+
+---
+
+Master these use cases for real-world Linux administration!
